@@ -128,7 +128,7 @@
 
 <script>
   const $ = id => document.getElementById(id);
-  const key = new URLSearchParams(location.search).get("t") || DEFAULT_TRACK;
+  const key = (new URLSearchParams(location.search).get("t") || "").trim().toLowerCase() || DEFAULT_TRACK;
   const tr = TRACKS[key] || TRACKS[DEFAULT_TRACK];
   const audio = $("audio");
 

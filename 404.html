@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Posłuchaj</title>
+<script>
+  // Każdy błędny adres w obrębie /nfc-shirts/ (np. spacja na końcu z tagu NFC)
+  // przekierowuje na odtwarzacz, zachowując ?t=<klucz>.
+  var base = "/nfc-shirts/";
+  var q = location.search;
+  // Jeśli klucz trafił do ścieżki zamiast do ?t= (np. /nfc-shirts/demo), użyj go.
+  if (!q) {
+    var rest = decodeURIComponent(location.pathname.slice(base.length)).trim().replace(/\/+$/, "");
+    if (rest && rest.indexOf("/") < 0 && !/\.html?$/i.test(rest)) q = "?t=" + encodeURIComponent(rest);
+  }
+  location.replace(base + q.trim());
+</script>
+</head>
+<body style="background:#0e0b1a"></body>
+</html>
