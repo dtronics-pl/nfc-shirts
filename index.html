@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0b1a">
+<title>Posłuchaj</title>
+<style>
+  /* ============================================================
+     KONFIGURACJA UTWORÓW
+     Każdy tag NFC = link z ?t=<klucz>, np.
+     https://<user>.github.io/<repo>/?t=demo
+     Pliki MP3 wrzucasz do folderu muzyka/.
+     ============================================================ */
+</style>
+<script>
+  const TRACKS = {
+    demo: {
+      title:  "Melodia demo",
+      artist: "Test tagu NFC",
+      src:    "muzyka/demo.mp3",
+      cover:  "",            // opcjonalnie: "okladki/demo.jpg"
+      hue:    265            // kolor motywu 0–360 (265 = fiolet, 200 = niebieski, 20 = pomarańcz)
+    }
+    // , drugi: { title: "…", artist: "…", src: "muzyka/drugi.mp3", hue: 200 }
+  };
+  const DEFAULT_TRACK = "demo";
+</script>
+<style>
+  :root { --h: 265; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #fff;
+    background:
+      radial-gradient(120% 80% at 50% 0%, hsl(var(--h) 70% 28%) 0%, transparent 60%),
+      radial-gradient(90% 60% at 50% 110%, hsl(calc(var(--h) + 40) 70% 22%) 0%, transparent 60%),
+      #0e0b1a;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .stage { position: relative; width: min(72vw, 300px); aspect-ratio: 1; display: grid; place-items: center; }
+
+  .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 2px solid hsl(var(--h) 90% 70% / .35);
+    opacity: 0; transform: scale(.6);
+  }
+  body.playing .ring { animation: pulse 2.4s cubic-bezier(.2,.6,.3,1) infinite; }
+  body.playing .ring:nth-child(2) { animation-delay: .8s; }
+  body.playing .ring:nth-child(3) { animation-delay: 1.6s; }
+  @keyframes pulse { 0% { opacity: .9; transform: scale(.6); } 100% { opacity: 0; transform: scale(1.25); } }
+
+  .cover {
+    position: absolute; inset: 14%; border-radius: 50%;
+    background: conic-gradient(from 0deg, hsl(var(--h) 80% 55%), hsl(calc(var(--h) + 60) 80% 60%), hsl(var(--h) 80% 55%));
+    background-size: cover; background-position: center;
+    box-shadow: 0 20px 60px hsl(var(--h) 80% 30% / .6), inset 0 0 0 1px #ffffff22;
+  }
+  body.playing .cover { animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .play {
+    position: relative; z-index: 2;
+    width: 42%; aspect-ratio: 1; border-radius: 50%; border: 0; cursor: pointer;
+    background: #ffffffee; color: hsl(var(--h) 60% 20%);
+    display: grid; place-items: center;
+    box-shadow: 0 10px 30px #0006;
+    transition: transform .15s ease;
+  }
+  .play:active { transform: scale(.93); }
+  .play svg { width: 42%; height: 42%; }
+  .play .i-pause { display: none; }
+  body.playing .play .i-play { display: none; }
+  body.playing .play .i-pause { display: block; }
+  body.ready:not(.playing):not(.started) .play { animation: nudge 1.6s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: scale(1.07); } }
+
+  .meta { text-align: center; margin-top: 36px; max-width: 340px; }
+  .title { font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
+  .artist { margin-top: 6px; font-size: 1rem; color: #ffffffaa; }
+  .hint { margin-top: 18px; font-size: .85rem; color: #ffffff77; min-height: 1.2em; }
+
+  .bar { width: min(80vw, 320px); margin-top: 28px; }
+  .track { height: 5px; border-radius: 5px; background: #ffffff22; overflow: hidden; cursor: pointer; }
+  .fill { height: 100%; width: 0%; background: hsl(var(--h) 90% 75%); border-radius: 5px; }
+  .times { display: flex; justify-content: space-between; margin-top: 8px; font-size: .75rem; color: #ffffff88; font-variant-numeric: tabular-nums; }
+
+  @media (prefers-reduced-motion: reduce) {
+    body.playing .ring, body.playing .cover, .play { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+    <div class="cover" id="cover"></div>
+    <button class="play" id="play" aria-label="Odtwórz">
+      <svg class="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+      <svg class="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+    </button>
+  </div>
+
+  <div class="meta">
+    <div class="title" id="title">…</div>
+    <div class="artist" id="artist"></div>
+  </div>
+
+  <div class="bar">
+    <div class="track" id="seek"><div class="fill" id="fill"></div></div>
+    <div class="times"><span id="cur">0:00</span><span id="dur">0:00</span></div>
+  </div>
+  <div class="hint" id="hint"></div>
+
+  <audio id="audio" preload="auto" playsinline></audio>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const key = new URLSearchParams(location.search).get("t") || DEFAULT_TRACK;
+  const tr = TRACKS[key] || TRACKS[DEFAULT_TRACK];
+  const audio = $("audio");
+
+  document.documentElement.style.setProperty("--h", tr.hue ?? 265);
+  $("title").textContent = tr.title;
+  $("artist").textContent = tr.artist || "";
+  document.title = tr.title;
+  if (tr.cover) $("cover").style.backgroundImage = `url("${tr.cover}")`;
+  audio.src = tr.src;
+
+  if ("mediaSession" in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: tr.title, artist: tr.artist || "",
+      artwork: tr.cover ? [{ src: new URL(tr.cover, location.href).href, sizes: "512x512" }] : []
+    });
+  }
+
+  const fmt = s => isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}` : "0:00";
+  const setState = () => document.body.classList.toggle("playing", !audio.paused);
+
+  function toggle() {
+    document.body.classList.add("started");
+    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+  }
+  $("play").addEventListener("click", toggle);
+
+  audio.addEventListener("play", () => { setState(); $("hint").textContent = ""; $("play").setAttribute("aria-label", "Pauza"); });
+  audio.addEventListener("pause", () => { setState(); $("play").setAttribute("aria-label", "Odtwórz"); });
+  audio.addEventListener("ended", setState);
+  audio.addEventListener("loadedmetadata", () => $("dur").textContent = fmt(audio.duration));
+  audio.addEventListener("timeupdate", () => {
+    $("cur").textContent = fmt(audio.currentTime);
+    $("fill").style.width = (audio.currentTime / audio.duration * 100 || 0) + "%";
+  });
+  audio.addEventListener("error", () => $("hint").textContent = "Nie udało się wczytać pliku muzyki.");
+
+  $("seek").addEventListener("click", e => {
+    const r = e.currentTarget.getBoundingClientRect();
+    if (audio.duration) audio.currentTime = (e.clientX - r.left) / r.width * audio.duration;
+  });
+
+  // Próba autoodtwarzania — Android/Chrome czasem pozwala, iPhone zwykle wymaga dotknięcia.
+  document.body.classList.add("ready");
+  audio.play().catch(() => { $("hint").textContent = "Dotknij ▶, aby posłuchać"; });
+</script>
+</body>
+</html>
